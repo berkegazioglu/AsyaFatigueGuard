@@ -1,0 +1,19 @@
+services:
+  asyafatigueguard:
+    build: .
+    container_name: asyafatigueguard
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # yapılandırmayı imajı yeniden kurmadan değiştirebilmek için
+      - ./config:/opt/afg/config
+      # alarm kanıt görüntüleri kalıcı olsun
+      - ./media:/opt/afg/media
+      # özel eğitilmiş modeller (sigara vb.)
+      - ./models:/opt/afg/models
+    # USB kamera kullanılacaksa (Linux host) aşağıyı açın:
+    # devices:
+    #   - /dev/video0:/dev/video0
+    environment:
+      - AFG_CONFIG=/opt/afg/config/config.yaml

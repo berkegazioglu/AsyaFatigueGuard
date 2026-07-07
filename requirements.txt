@@ -1,0 +1,10 @@
+fastapi>=0.111
+uvicorn[standard]>=0.30
+opencv-python-headless>=4.9
+mediapipe==0.10.14
+ultralytics>=8.2
+numpy>=1.26,<2.0
+PyYAML>=6.0
+requests>=2.32
+websockets>=12.0
+python-multipart>=0.0.9

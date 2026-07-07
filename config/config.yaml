@@ -1,0 +1,74 @@
+# AsyaFatigueGuard - Sürücü İzleme Sistemi (DMS) yapılandırması
+# Mevcut kamera donanımına müdahale gerekmez: RTSP/HTTP/USB kaynağı yeterlidir.
+
+cameras:
+  # source: RTSP adresi ("rtsp://kullanici:sifre@ip:554/stream"),
+  #         USB kamera indeksi (0, 1, ...) veya video dosyası yolu olabilir.
+  - id: cam1
+    name: "TTC 59 Berko"
+    source: 0
+    enabled: true
+  # - id: cam2
+  #   name: "Tır 2 - Kabin Kamerası"
+  #   source: "rtsp://admin:parola@192.168.1.64:554/Streaming/Channels/101"
+  #   enabled: true
+
+video:
+  process_width: 640        # işleme öncesi yeniden boyutlandırma genişliği
+  yolo_every_n_frames: 3    # YOLO her N karede bir çalışır (CPU tasarrufu)
+  reconnect_delay_sec: 5    # kamera koptuğunda yeniden bağlanma bekleme süresi
+
+detection:
+  # --- Göz / uyku (EAR) ---
+  ear_threshold: 0.21           # bu değerin altı "göz kapalı" sayılır
+  microsleep_sec: 1.5           # gözler bu süre kapalı kalırsa MİKRO UYKU alarmı
+  perclos_window_sec: 60        # PERCLOS hesaplama penceresi
+  perclos_threshold: 0.30       # pencere içinde gözlerin kapalı olma oranı eşiği
+
+  # --- Esneme (MAR) ---
+  mar_threshold: 0.65
+  yawn_min_sec: 1.2             # ağız bu süre açık kalırsa ESNEME sayılır
+  yawns_for_fatigue: 3          # pencere içinde bu kadar esneme -> YORGUNLUK alarmı
+  yawn_window_sec: 300
+
+  # --- Baş pozu (Head Pose) ---
+  head_down_pitch_deg: -18      # başın öne düşme eşiği (derece)
+  head_down_sec: 2.0
+  distraction_yaw_deg: 32       # yola bakmama (sağa/sola dönme) eşiği
+  distraction_sec: 2.5
+
+  # --- Nesne tespiti (YOLO) ---
+  yolo_model: "yolov8n.pt"      # COCO ön-eğitimli; "cell phone" sınıfını içerir
+  custom_model: "models/cigarette.pt"   # YOLOv11m sigara modeli (HF: HEIher/smoking-detection, mAP50=%82.9)
+  phone_conf: 0.45
+  phone_persist_sec: 1.5        # telefon bu süre boyunca görülürse alarm
+  cigarette_conf: 0.55          # düşük tutulursa bardak/el hareketi yanlış alarm üretebilir
+  cigarette_persist_sec: 1.5
+  drink_conf: 0.22              # bardak/şişe/kupa (şeffaf çay bardağı için düşük eşik)
+  drink_persist_sec: 2.0        # kap bu süre ağız hizasında kalırsa "İçecek İçme"
+
+  # --- Sürücü yokluğu / kamera engelleme ---
+  no_face_sec: 6.0
+
+  # --- Davranışsal bozulma (alkol/madde ŞÜPHESİ - dolaylı gösterge) ---
+  # DİKKAT: Kamera alkolü ölçemez. Bu alarm; sık mikro uyku + baş sallanması +
+  # yüksek PERCLOS kombinasyonuna dayalı bir ŞÜPHE bildirimidir.
+  impairment_events_threshold: 4    # pencere içindeki ciddi olay sayısı
+  impairment_window_sec: 300
+
+alerts:
+  cooldown_sec: 30              # aynı kameradan aynı tip alarmın tekrar bildirim aralığı
+  risk_half_life_sec: 300       # risk puanı yarılanma süresi (5 dk'da yarıya iner)
+  risk_gain: 0.25               # alarm puanı çarpanı (0.25 = 4 kat yavaş artış)
+  save_snapshots: true          # alarm anında kanıt görüntüsü kaydet
+  snapshot_dir: "media/alerts"
+  history_size: 500
+
+  # Harici bildirim kanalları (opsiyonel)
+  webhook_url: ""               # POST JSON gönderilecek adres (örn. kendi sunucunuz)
+  telegram_bot_token: ""        # Telegram bot token
+  telegram_chat_id: ""          # Telegram sohbet ID
+
+server:
+  host: "0.0.0.0"
+  port: 8000

@@ -1,0 +1,10 @@
+.git
+__pycache__
+*.pyc
+.venv
+venv
+media
+runs
+training/data
+*.pt
+README.md

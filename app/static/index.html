@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Asyaport Sürücü İzleme Sistemi</title>
+<style>
+  :root {
+    --bg: #0f1420; --panel: #171e2e; --border: #263046;
+    --text: #e8ecf4; --muted: #8b96ab;
+    --green: #34c07c; --yellow: #f0b429; --red: #e5484d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text);
+         font-family: "Segoe UI", system-ui, sans-serif; min-height: 100vh; }
+  header { display: flex; align-items: center; gap: 16px;
+           padding: 12px 26px; position: sticky; top: 0; z-index: 50;
+           background: linear-gradient(90deg, #0d1322 0%, #1a2344 55%, #0d1322 100%);
+           border-bottom: 1px solid #2b3a5e;
+           box-shadow: 0 4px 24px rgba(0,0,0,.35); }
+  header .logo { background: #fff; border-radius: 10px; padding: 6px 12px;
+                 display: flex; align-items: center;
+                 box-shadow: 0 2px 10px rgba(0,0,0,.35); }
+  header .logo img { height: 32px; display: block; }
+  header h1 { font-size: 18px; font-weight: 700; letter-spacing: .3px; }
+  header h1 .accent { color: #f7a800; }
+  header .right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+  #risk-chips { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .risk-chip { display: flex; align-items: center; gap: 8px;
+               padding: 6px 14px; border-radius: 999px;
+               font-size: 13px; font-weight: 700; letter-spacing: .2px;
+               transition: all .4s; }
+  .risk-chip .bar { width: 46px; height: 5px; border-radius: 3px;
+                    background: rgba(255,255,255,.15); overflow: hidden; }
+  .risk-chip .bar i { display: block; height: 100%; border-radius: 3px;
+                      background: currentColor; transition: width .6s; }
+  .risk-low  { background: rgba(52,192,124,.12); color: var(--green);
+               border: 1px solid rgba(52,192,124,.35); }
+  .risk-mid  { background: rgba(240,180,41,.12); color: var(--yellow);
+               border: 1px solid rgba(240,180,41,.4); }
+  .risk-high { background: rgba(229,72,77,.15); color: var(--red);
+               border: 1px solid rgba(229,72,77,.5);
+               animation: riskblink 1.2s ease-in-out infinite; }
+  @keyframes riskblink { 50% { box-shadow: 0 0 14px rgba(229,72,77,.55); } }
+  #clock { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #ws-pill { display: flex; align-items: center; gap: 8px;
+             padding: 6px 14px; border-radius: 999px; font-size: 13px;
+             background: rgba(229,72,77,.12); color: var(--red);
+             border: 1px solid rgba(229,72,77,.35); transition: all .3s; }
+  #ws-pill.on { background: rgba(52,192,124,.12); color: var(--green);
+                border-color: rgba(52,192,124,.35); }
+  #ws-dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+  #ws-pill.on #ws-dot { animation: pulse 1.6s ease-out infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(52,192,124,.55); }
+    100% { box-shadow: 0 0 0 9px rgba(52,192,124,0); }
+  }
+
+  .layout { display: grid; grid-template-columns: 1fr 360px; gap: 16px;
+            padding: 16px 22px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  .cams { display: grid; gap: 16px;
+          grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .cam { background: var(--panel); border: 1px solid var(--border);
+         border-radius: 10px; overflow: hidden; }
+  .cam.alarm { border-color: var(--red); box-shadow: 0 0 0 2px var(--red); }
+  .cam img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover;
+             background: #000; }
+  .cam .bar { display: flex; align-items: center; gap: 8px;
+              padding: 10px 12px; font-size: 13px; }
+  .cam .bar .name { font-weight: 600; }
+  .cam .bar .fps { color: var(--muted); margin-left: auto; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); }
+  .dot.on { background: var(--green); }
+  .metrics { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 12px; }
+  .chip { font-size: 12px; padding: 3px 9px; border-radius: 20px;
+          background: #202a40; color: var(--muted); }
+  .chip.bad { background: rgba(229,72,77,.18); color: var(--red); font-weight: 600; }
+
+  .alerts { background: var(--panel); border: 1px solid var(--border);
+            border-radius: 10px; max-height: calc(100vh - 110px);
+            display: flex; flex-direction: column; }
+  .alerts h2 { font-size: 14px; padding: 12px 14px;
+               border-bottom: 1px solid var(--border); }
+  #alert-list { overflow-y: auto; }
+  .alert { padding: 10px 14px; border-bottom: 1px solid var(--border);
+           font-size: 13px; }
+  .alert .t { font-weight: 600; }
+  .alert.critical .t { color: var(--red); }
+  .alert.warning .t { color: var(--yellow); }
+  .alert .m { color: var(--muted); margin-top: 2px; }
+  .alert a { color: #6ca7ff; font-size: 12px; }
+  .empty { padding: 20px; color: var(--muted); font-size: 13px; text-align: center; }
+
+  #toast { position: fixed; right: 20px; bottom: 20px; display: flex;
+           flex-direction: column; gap: 8px; z-index: 99; }
+  .toast { background: var(--red); color: #fff; padding: 12px 18px;
+           border-radius: 8px; font-size: 14px; font-weight: 600;
+           box-shadow: 0 6px 24px rgba(0,0,0,.4);
+           animation: pop .2s ease; }
+  .toast.warning { background: var(--yellow); color: #222; }
+  @keyframes pop { from { transform: translateY(8px); opacity: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo"><img src="/static/logo.png" alt="Asyaport"></span>
+  <h1><span class="accent">Asyaport</span> Sürücü İzleme Sistemi</h1>
+  <div class="right">
+    <div id="risk-chips"></div>
+    <span id="clock"></span>
+    <span id="ws-pill" title="Canlı bağlantı durumu">
+      <span id="ws-dot"></span><span id="ws-text">Bağlanıyor…</span>
+    </span>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="cams" id="cams"></div>
+  <div class="alerts">
+    <h2>⚠️ Canlı Uyarılar</h2>
+    <div id="alert-list"><div class="empty">Henüz uyarı yok.</div></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const camsEl = document.getElementById("cams");
+const listEl = document.getElementById("alert-list");
+const wsPill = document.getElementById("ws-pill");
+const wsText = document.getElementById("ws-text");
+const clockEl = document.getElementById("clock");
+const known = new Set();
+
+setInterval(() => {
+  clockEl.textContent = new Date().toLocaleTimeString("tr-TR");
+}, 1000);
+
+// alarm sesi (harici dosya gerekmez)
+let audioCtx = null;
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.value = 880; g.gain.value = 0.15;
+    o.start(); o.stop(audioCtx.currentTime + 0.35);
+  } catch (e) {}
+}
+
+function camCard(c) {
+  return `
+  <div class="cam" id="cam-${c.id}">
+    <img src="/stream/${c.id}" alt="${c.name}">
+    <div class="bar">
+      <span class="dot" id="dot-${c.id}"></span>
+      <span class="name">${c.name}</span>
+      <span class="fps" id="fps-${c.id}"></span>
+    </div>
+    <div class="metrics" id="met-${c.id}"></div>
+  </div>`;
+}
+
+function chip(label, bad) {
+  return `<span class="chip ${bad ? "bad" : ""}">${label}</span>`;
+}
+
+function riskClass(r) { return r >= 60 ? "risk-high" : r >= 30 ? "risk-mid" : "risk-low"; }
+
+function renderRiskChips(cameras) {
+  document.getElementById("risk-chips").innerHTML = cameras.map(c => `
+    <span class="risk-chip ${riskClass(c.risk)}" title="Sürücü risk puanı (0-100)">
+      ${c.name} — RİSK %${c.risk}
+      <span class="bar"><i style="width:${Math.min(100, c.risk)}%"></i></span>
+    </span>`).join("");
+}
+
+async function refreshStatus() {
+  try {
+    const r = await fetch("/api/status");
+    const j = await r.json();
+    renderRiskChips(j.cameras);
+    for (const c of j.cameras) {
+      if (!known.has(c.id)) { known.add(c.id); camsEl.insertAdjacentHTML("beforeend", camCard(c)); }
+      document.getElementById(`dot-${c.id}`).className = "dot" + (c.online ? " on" : "");
+      document.getElementById(`fps-${c.id}`).textContent = c.online ? c.fps + " FPS" : "çevrimdışı";
+      const s = c.state, alarm = s.active_events.length > 0;
+      document.getElementById(`cam-${c.id}`).className = "cam" + (alarm ? " alarm" : "");
+      document.getElementById(`met-${c.id}`).innerHTML =
+        chip("EAR " + s.ear.toFixed(2), false) +
+        chip("MAR " + s.mar.toFixed(2), false) +
+        chip("PERCLOS " + (s.perclos * 100).toFixed(0) + "%", s.perclos > 0.25) +
+        chip(s.face_visible ? "Yüz ✓" : "Yüz ✗", !s.face_visible) +
+        (s.phone ? chip("📱 TELEFON", true) : "") +
+        (s.cigarette ? chip("🚬 SİGARA", true) : "") +
+        (s.drinking ? chip("☕ İÇECEK", true) : "");
+    }
+  } catch (e) { /* sunucu geçici erişilemez */ }
+}
+
+function alertHtml(a) {
+  return `
+  <div class="alert ${a.severity}">
+    <div class="t">${a.title} — ${a.camera_name}</div>
+    <div class="m">${a.time_str} · ${a.message}
+      ${a.snapshot ? ` <a href="${a.snapshot}" target="_blank">görüntü</a>` : ""}</div>
+  </div>`;
+}
+
+function addAlert(a, notify) {
+  if (listEl.querySelector(".empty")) listEl.innerHTML = "";
+  listEl.insertAdjacentHTML("afterbegin", alertHtml(a));
+  while (listEl.children.length > 200) listEl.lastChild.remove();
+  if (notify) {
+    const t = document.createElement("div");
+    t.className = "toast " + a.severity;
+    t.textContent = `${a.title} — ${a.camera_name}`;
+    document.getElementById("toast").appendChild(t);
+    setTimeout(() => t.remove(), 6000);
+    beep();
+  }
+}
+
+function connectWs() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${proto}://${location.host}/ws/alerts`);
+  ws.onopen = () => { wsPill.classList.add("on"); wsText.textContent = "Canlı"; };
+  ws.onclose = () => {
+    wsPill.classList.remove("on"); wsText.textContent = "Bağlantı yok";
+    setTimeout(connectWs, 3000);
+  };
+  ws.onmessage = (m) => {
+    const msg = JSON.parse(m.data);
+    if (msg.kind === "history") {
+      for (const a of [...msg.data].reverse()) addAlert(a, false);
+    } else if (msg.kind === "alert") {
+      addAlert(msg.data, true);
+    }
+  };
+}
+
+refreshStatus();
+setInterval(refreshStatus, 1000);
+connectWs();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.pt
+!models/.gitkeep
+media/alerts/*.jpg
+runs/
+training/data/
+.env
+kaggle.json
+baslat - Kopya.bat
