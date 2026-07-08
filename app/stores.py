@@ -114,3 +114,20 @@ class DriverStore:
     def pending(self) -> list[dict]:
         """İsimlendirme bekleyen kayıtlar (admin'i zorlamak için)."""
         return [d for d in self._file.load() if d["status"] == "pending"]
+
+    def latest_named(self, camera_id: str, since: float = 0.0) -> Optional[dict]:
+        """Kameranın aktif (en son isimlendirilen) sürücüsü."""
+        candidates = [
+            d for d in self._file.load()
+            if d["camera_id"] == camera_id
+            and d["status"] == "named"
+            and d["created_at"] >= since
+        ]
+        return max(candidates, key=lambda d: d["created_at"], default=None)
+
+    def has_unresolved(self, camera_id: str) -> bool:
+        """Kamerada süren yakalama veya isim bekleyen kayıt var mı?"""
+        return any(
+            d["camera_id"] == camera_id and d["status"] in ("capturing", "pending")
+            for d in self._file.load()
+        )

@@ -10,6 +10,7 @@ export default function AlertsFeed({ alerts }) {
           <div key={`${a.timestamp}-${i}`} className={`alert ${a.severity}`}>
             <div className="t">
               {a.title} — {a.camera_name}
+              {a.driver ? ` · 👤 ${a.driver}` : ""}
             </div>
             <div className="m">
               {a.time_str}

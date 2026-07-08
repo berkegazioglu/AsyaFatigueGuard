@@ -50,6 +50,30 @@ def mac_for_ip(ip: str) -> Optional[str]:
     return None
 
 
+def usb_hardware_id(device_name: str) -> Optional[str]:
+    """USB kameranın donanım kimliğini (VID/PID + seri no) döndürür.
+
+    USB cihazların MAC adresi yoktur; bu kimlik MAC'in muadilidir ve kamera
+    başka bir USB portuna takılsa bile değişmez.
+    """
+    if platform.system() != "Windows":
+        return None
+    safe = device_name.replace("'", "")
+    try:
+        out = subprocess.run(
+            [
+                "powershell", "-NoProfile", "-Command",
+                "Get-PnpDevice -Class Camera,Image -ErrorAction SilentlyContinue | "
+                f"Where-Object {{ $_.FriendlyName -like '*{safe}*' }} | "
+                "Select-Object -ExpandProperty InstanceId",
+            ],
+            capture_output=True, text=True, timeout=15,
+        ).stdout.strip()
+        return out.splitlines()[0].strip() if out else None
+    except Exception:
+        return None
+
+
 def source_identity(source: Union[int, str]) -> dict:
     """Kamera kaynağı için {kind, ip, mac, identifier} döndürür.
 
@@ -81,10 +105,13 @@ def source_identity(source: Union[int, str]) -> dict:
             "mac": None,
             "identifier": f"FILE-{Path(src).stem}",
         }
-    # kamera ADI ile seçim (Windows DirectShow): ad, kalıcı kimliktir
+    # kamera ADI ile seçim (Windows DirectShow)
+    # USB'de MAC yoktur; donanım seri numarası (InstanceId) MAC muadilidir.
+    hw = usb_hardware_id(src)
     return {
         "kind": "usb",
         "ip": None,
         "mac": None,
-        "identifier": f"DEV-{src}",
+        "hardware_id": hw,
+        "identifier": f"HW-{hw}" if hw else f"DEV-{src}",
     }

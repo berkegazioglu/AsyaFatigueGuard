@@ -19,9 +19,11 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+import time
+
 from app.auth import AuthManager
 from app.config import Config
-from app.core.enrollment import DRIVERS_MEDIA_DIR, EnrollmentService
+from app.core.enrollment import DRIVERS_MEDIA_DIR, AutoEnroller, EnrollmentService
 from app.core.mac_detect import source_identity
 from app.core.object_detector import ObjectDetector
 from app.core.pipeline import CameraPipeline
@@ -64,6 +66,21 @@ def create_app(cfg: Config) -> FastAPI:
     )
     pipelines: dict[str, CameraPipeline] = {}
     identity_cache: dict[str, dict] = {}
+    session_start = time.time()
+
+    def _equipment_of(camera_id: str) -> str | None:
+        for info in equipment_store.all().values():
+            if info.get("camera_id") == camera_id:
+                return info.get("equipment")
+        return None
+
+    def _driver_of(camera_id: str) -> str | None:
+        record = driver_store.latest_named(camera_id, since=session_start)
+        return record["name"] if record else None
+
+    # uyarılar aktif sürücünün adıyla gitsin
+    alert_manager.driver_resolver = _driver_of
+    auto_enroller = AutoEnroller(pipelines, enrollment, _equipment_of, session_start)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -72,8 +89,10 @@ def create_app(cfg: Config) -> FastAPI:
             p = CameraPipeline(cam, cfg.video, cfg.detection, detector, alert_manager)
             pipelines[p.camera_id] = p
             p.start()
+        auto_enroller.start()
         log.info("%d kamera hattı başlatıldı", len(pipelines))
         yield
+        auto_enroller.stop()
         for p in pipelines.values():
             p.stop()
 
@@ -99,17 +118,15 @@ def create_app(cfg: Config) -> FastAPI:
         return {"ok": True, "username": auth.username}
 
     # --- durum / uyarılar -------------------------------------------------------
-    def _equipment_of(camera_id: str) -> str | None:
-        for info in equipment_store.all().values():
-            if info.get("camera_id") == camera_id:
-                return info.get("equipment")
-        return None
-
     @app.get("/api/status")
     async def status(_=require_auth):
         return {
             "cameras": [
-                {**p.status(), "equipment": _equipment_of(p.camera_id)}
+                {
+                    **p.status(),
+                    "equipment": _equipment_of(p.camera_id),
+                    "driver": _driver_of(p.camera_id),
+                }
                 for p in pipelines.values()
             ]
         }

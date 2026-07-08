@@ -3,6 +3,7 @@ import { api, authedUrl, setToken } from "./api";
 import CameraCard from "./components/CameraCard";
 import AlertsFeed from "./components/AlertsFeed";
 import DriverNameModal from "./components/DriverNameModal";
+import EquipmentModal from "./components/EquipmentModal";
 
 function riskClass(r) {
   return r >= 60 ? "risk-high" : r >= 30 ? "risk-mid" : "risk-low";
@@ -14,6 +15,7 @@ export default function Dashboard({ onLogout }) {
   const [wsOn, setWsOn] = useState(false);
   const [clock, setClock] = useState("");
   const [drivers, setDrivers] = useState([]);
+  const [identities, setIdentities] = useState({}); // camera_id -> identity
   const audioRef = useRef(null);
 
   // --- saat -----------------------------------------------------------------
@@ -43,6 +45,23 @@ export default function Dashboard({ onLogout }) {
       clearInterval(t);
     };
   }, []);
+
+  // --- kamera kimlikleri (MAC / donanım ID + eşleştirme durumu) -----------------
+  const loadIdentity = useCallback(async (cameraId) => {
+    try {
+      const res = await api(`/api/cameras/${cameraId}/identity`);
+      setIdentities((prev) => ({ ...prev, [cameraId]: res }));
+    } catch {
+      setIdentities((prev) => ({ ...prev, [cameraId]: { error: true } }));
+    }
+  }, []);
+
+  useEffect(() => {
+    for (const c of cameras) {
+      if (!(c.id in identities)) loadIdentity(c.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameras]);
 
   // --- sürücü kayıtları (2 sn: yakalama ilerlemesi + isim bekleyenler) ----------
   const refreshDrivers = useCallback(async () => {
@@ -118,6 +137,10 @@ export default function Dashboard({ onLogout }) {
   }
 
   const pending = drivers.filter((d) => d.status === "pending");
+  // eşlenmemiş ilk kamera: ekipman ataması zorunlu
+  const unpaired = cameras.find(
+    (c) => identities[c.id] && !identities[c.id].error && !identities[c.id].pairing
+  );
 
   return (
     <div className="dash">
@@ -136,7 +159,8 @@ export default function Dashboard({ onLogout }) {
                 className={`risk-chip ${riskClass(c.risk)}`}
                 title="Sürücü risk puanı (0-100)"
               >
-                {c.equipment || c.name} — RİSK %{c.risk}
+                {c.equipment || c.name}
+                {c.driver ? ` · ${c.driver}` : ""} — RİSK %{c.risk}
                 <span className="bar">
                   <i style={{ width: `${Math.min(100, c.risk)}%` }} />
                 </span>
@@ -160,6 +184,7 @@ export default function Dashboard({ onLogout }) {
             <CameraCard
               key={c.id}
               camera={c}
+              identity={identities[c.id]}
               drivers={drivers.filter((d) => d.camera_id === c.id)}
               onDriversChanged={refreshDrivers}
             />
@@ -171,8 +196,17 @@ export default function Dashboard({ onLogout }) {
         <AlertsFeed alerts={alerts} />
       </div>
 
-      {pending.length > 0 && (
-        <DriverNameModal driver={pending[0]} onNamed={refreshDrivers} />
+      {/* önce ekipman eşleştirme, sonra sürücü isimlendirme zorunluluğu */}
+      {unpaired ? (
+        <EquipmentModal
+          camera={unpaired}
+          identity={identities[unpaired.id]}
+          onPaired={() => loadIdentity(unpaired.id)}
+        />
+      ) : (
+        pending.length > 0 && (
+          <DriverNameModal driver={pending[0]} onNamed={refreshDrivers} />
+        )
       )}
     </div>
   );

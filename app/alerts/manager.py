@@ -37,6 +37,8 @@ class AlertManager:
         self._lock = threading.Lock()
         self._ws_clients: set = set()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
+        # kamera id -> aktif sürücü adı çözümleyici (server.py atar)
+        self.driver_resolver = None
         self._notifier = Notifier(
             webhook_url=cfg.get("webhook_url", ""),
             telegram_bot_token=cfg.get("telegram_bot_token", ""),
@@ -73,6 +75,9 @@ class AlertManager:
                 )
 
             record = asdict(ev)
+            record["driver"] = (
+                self.driver_resolver(ev.camera_id) if self.driver_resolver else None
+            )
             record["risk"] = self.risk(ev.camera_id, now)
             record["time_str"] = datetime.fromtimestamp(now).strftime("%d.%m.%Y %H:%M:%S")
             record["snapshot"] = self._save_snapshot(ev, frame) if frame is not None else None
