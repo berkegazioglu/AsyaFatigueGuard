@@ -6,7 +6,7 @@ cameras:
   #         USB kamera indeksi (0, 1, ...) veya video dosyası yolu olabilir.
   - id: cam1
     name: "TTC 59 Berko"
-    source: 0
+    source: "Insta360 Ace Pro"   # kamera ADI ile seçim (sanal kameralara karışmaz)
     enabled: true
   # - id: cam2
   #   name: "Tır 2 - Kabin Kamerası"

@@ -74,9 +74,17 @@ def source_identity(source: Union[int, str]) -> dict:
             # MAC bulunamazsa IP üzerinden geçici kimlik (kamera kapalı olabilir)
             "identifier": mac if mac else (f"IP-{host}" if host else "IP-?"),
         }
+    if Path(src).exists():
+        return {
+            "kind": "file",
+            "ip": None,
+            "mac": None,
+            "identifier": f"FILE-{Path(src).stem}",
+        }
+    # kamera ADI ile seçim (Windows DirectShow): ad, kalıcı kimliktir
     return {
-        "kind": "file",
+        "kind": "usb",
         "ip": None,
         "mac": None,
-        "identifier": f"FILE-{Path(src).stem}",
+        "identifier": f"DEV-{src}",
     }
