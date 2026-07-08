@@ -8,3 +8,5 @@ runs
 training/data
 *.pt
 README.md
+frontend/node_modules
+data

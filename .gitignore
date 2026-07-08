@@ -10,3 +10,7 @@ training/data/
 .env
 kaggle.json
 baslat - Kopya.bat
+frontend/node_modules/
+frontend/dist/
+data/
+media/drivers/

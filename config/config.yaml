@@ -72,3 +72,7 @@ alerts:
 server:
   host: "0.0.0.0"
   port: 8000
+  # Yönetim paneli girişi. ÜRETİMDE MUTLAKA DEĞİŞTİRİN
+  # (veya AFG_ADMIN_USER / AFG_ADMIN_PASSWORD ortam değişkenlerini kullanın).
+  admin_user: "admin"
+  admin_password: "admin123"
