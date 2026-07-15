@@ -1,5 +1,9 @@
 # Özel Model Eğitimi: Sigara / E-Sigara / Telefon Tespiti
 
+> 📌 **Adım adım tam plan için: [YOL-HARITASI.md](YOL-HARITASI.md)**
+> (bardak/çay bardağı dahil tek model eğitimi, veri toplama betiği,
+> Kaggle GPU eğitimi ve saha iyileştirme döngüsü)
+
 Varsayılan `yolov8n.pt` (COCO) modeli **cep telefonunu** hazır tanır.
 **Sigara** COCO'da yoktur; yüksek doğruluk için özel veri setiyle eğitim gerekir.
 
